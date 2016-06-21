@@ -1,1 +1,1 @@
-PitchfxViewer is a Shiny application that shows pitch location and break data for any pitcher in the 2013-2015 MLB seasons. It can be filtered and partitioned on things such as pitch type, outcome and batter count (among others) to produce interesting analyses.
+PitchfxViewer is a Shiny application that shows pitch location and break data for any pitcher in the 2015 MLB season. It can be filtered and partitioned on things such as pitch type, outcome and batter count (among others) to produce interesting analyses.

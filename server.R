@@ -1,4 +1,4 @@
-shinyServer(function(input, output) {	
+shinyServer(function(input, output) {
   filteredData <- reactive({
     dataset[dataset$Date >= input$date_range[1] & dataset$Date <= input$date_range[2],]
   })
@@ -8,10 +8,11 @@ shinyServer(function(input, output) {
     if(any(!is.na(input$pitchers))) dims <- c(dims,'pitcher_name')
     if(any(!is.na(input$batters))) dims <- c(dims,'batter_name')
     if(length(dims)==0) dims <- 'All'
-    dims <- c(dims,'pitch_name')
+    if(input$by_pitch_type) dims <- c(dims,'pitch_name')
     if(input$by_side) dims <- c(dims,'bat_side')
     if(input$by_inning) dims <- c(dims,'inning')
     if(input$by_event_type) dims <- c(dims,'event_type')
+    if(length(dims)==1) dims <- c(dims,'All')
     return(dims)
   })
 
@@ -57,30 +58,30 @@ shinyServer(function(input, output) {
     output <- do.call('rbind',lapply(split(1:nrow(output),output[,dims]),
       FUN=function(j) {
       if(length(j) > 0) {
-        i <- output[j,]
+        i <- as.matrix(output[j,c('initial_speed','plate_x','plate_z','break_x','break_z')])
         return(data.frame(
-          i[1,dims],
-          percent=paste0(round(100*(nrow(i)/sum(output[,dims[1]]==unique(i[,dims[1]]))),1),'%\n',round(mean(i$initial_speed,na.rm=T),1),'+/-',round(sd(i$initial_speed,na.rm=T),1),'mph'),
-          q10_plate_x=quantile(i$plate_x,0.1),
-          q25_plate_x=quantile(i$plate_x,0.25),
-          q50_plate_x=quantile(i$plate_x,0.5),
-          q75_plate_x=quantile(i$plate_x,0.75),
-          q90_plate_x=quantile(i$plate_x,0.9),
-          q10_plate_z=quantile(i$plate_z,0.1),
-          q25_plate_z=quantile(i$plate_z,0.25),
-          q50_plate_z=quantile(i$plate_z,0.5),
-          q75_plate_z=quantile(i$plate_z,0.75),
-          q90_plate_z=quantile(i$plate_z,0.9),
-          q10_break_x=quantile(i$break_x,0.1),
-          q25_break_x=quantile(i$break_x,0.25),
-          q50_break_x=quantile(i$break_x,0.5),
-          q75_break_x=quantile(i$break_x,0.75),
-          q90_break_x=quantile(i$break_x,0.9),
-          q10_break_z=quantile(i$break_z,0.1),
-          q25_break_z=quantile(i$break_z,0.25),
-          q50_break_z=quantile(i$break_z,0.5),
-          q75_break_z=quantile(i$break_z,0.75),
-          q90_break_z=quantile(i$break_z,0.9)
+          output[min(j),unique(dims)],
+          percent=paste0(round(100*(nrow(i)/sum(output[,dims[1]]==unique(output[j,dims[1]]))),1),'%\n',round(mean(i[,'initial_speed'],na.rm=T),1),'+/-',round(sd(i[,'initial_speed'],na.rm=T),1),'mph'),
+          q10_plate_x=quantile(i[,'plate_x'],0.1),
+          q25_plate_x=quantile(i[,'plate_x'],0.25),
+          q50_plate_x=quantile(i[,'plate_x'],0.5),
+          q75_plate_x=quantile(i[,'plate_x'],0.75),
+          q90_plate_x=quantile(i[,'plate_x'],0.9),
+          q10_plate_z=quantile(i[,'plate_z'],0.1),
+          q25_plate_z=quantile(i[,'plate_z'],0.25),
+          q50_plate_z=quantile(i[,'plate_z'],0.5),
+          q75_plate_z=quantile(i[,'plate_z'],0.75),
+          q90_plate_z=quantile(i[,'plate_z'],0.9),
+          q10_break_x=quantile(i[,'break_x'],0.1),
+          q25_break_x=quantile(i[,'break_x'],0.25),
+          q50_break_x=quantile(i[,'break_x'],0.5),
+          q75_break_x=quantile(i[,'break_x'],0.75),
+          q90_break_x=quantile(i[,'break_x'],0.9),
+          q10_break_z=quantile(i[,'break_z'],0.1),
+          q25_break_z=quantile(i[,'break_z'],0.25),
+          q50_break_z=quantile(i[,'break_z'],0.5),
+          q75_break_z=quantile(i[,'break_z'],0.75),
+          q90_break_z=quantile(i[,'break_z'],0.9)
         ))
       }
     }))
@@ -108,8 +109,8 @@ shinyServer(function(input, output) {
       geom_rect(data=distribution(),aes(x=-3,xmin=-3.06,xmax=-2.94,y=q25_plate_z,ymin=q25_plate_z,ymax=q75_plate_z),color='black',fill='black') +
       geom_rect(data=distribution(),aes(x=-3,xmin=-3.02,xmax=-2.98,y=q75_plate_z,ymin=q75_plate_z,ymax=q90_plate_z),color='black',fill='black') +
       geom_label(data=distribution(),aes(x=0,y=7,label=percent),color='black',size=3) +
-      labs(x='',y='',color='Speed (mph)') +
-      facet_grid(as.formula(paste0(dims[1],' ~ ',if(length(dims) > 1) paste(dims[2:length(dims)],collapse='+') else '.'))) +
+      labs(x="Horizontal Location (feet) from Catcher's Perspective",y='Vertical Location (feet)',color='Speed (mph)') +
+      facet_grid(as.formula(paste0(dims[1],' ~ ',paste(dims[2:length(dims)],collapse='+')))) +
       theme_bw()
       
       p1
@@ -136,8 +137,8 @@ shinyServer(function(input, output) {
       geom_rect(data=distribution(),aes(x=-17,xmin=-17.3,xmax=-16.7,y=q25_break_z,ymin=q25_break_z,ymax=q75_break_z),color='black',fill='black') +
       geom_rect(data=distribution(),aes(x=-17,xmin=-17.1,xmax=-16.9,y=q75_break_z,ymin=q75_break_z,ymax=q90_break_z),color='black',fill='black') +
       geom_label(data=distribution(),aes(x=0,y=16.5,label=percent),color='black',size=3) +
-      labs(x='',y='',color='Speed (mph)') +
-      facet_grid(as.formula(paste0(dims[1],' ~ ',if(length(dims) > 1) paste(dims[2:length(dims)],collapse='+') else '.'))) +
+      labs(x="Horizontal Break (inches) from Catcher's Perspective",y='Vertical Break (inches)',color='Speed (mph)') +
+      facet_grid(as.formula(paste0(dims[1],' ~ ',paste(dims[2:length(dims)],collapse='+')))) +
       theme_bw()
     
     p1

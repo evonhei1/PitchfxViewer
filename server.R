@@ -1,7 +1,7 @@
 shinyServer(function(input, output) {
-  filteredData <- reactive({
-    dataset[dataset$Date >= input$date_range[1] & dataset$Date <= input$date_range[2],]
-  })
+#   filteredData <- reactive({
+#     dataset[dataset$Date >= input$date_range[1] & dataset$Date <= input$date_range[2],]
+#   })
   
   dims <- reactive({
     dims <- c()
@@ -17,7 +17,8 @@ shinyServer(function(input, output) {
   })
 
   pitcherData <- reactive({
-    output <- filteredData()
+    # output <- filteredData()
+    output <- dataset
     if(any(!is.na(input$pitchers))) output <-output[output$pitcher_id %in% input$pitchers,]
     output
   })
@@ -32,7 +33,7 @@ shinyServer(function(input, output) {
     output <- batterData()
     
     if(any(!is.na(input$pitch_type))) {
-      output[output$pitch_type %in% input$pitch_type,]
+      if(input$exclude_pitch) output[!(output$pitch_type %in% input$pitch_type),] else output[output$pitch_type %in% input$pitch_type,]
     } else {
       output
     }
@@ -46,7 +47,7 @@ shinyServer(function(input, output) {
     if(!is.na(input$balls))  output <- output[output$pre_balls==input$balls,]
     if(!is.na(input$strikes))  output <- output[output$pre_strikes==input$strikes,]
     if(!is.na(input$outs))  output <- output[output$pre_outs==input$outs,]
-    if(any(!is.na(input$event_type)))  output <- output[output$event_type %in% input$event_type,]
+    if(any(!is.na(input$event_type))) output <-  if(input$exclude_event) output <- output[!(output$event_type %in% input$event_type),] else output <- output[output$event_type %in% input$event_type,]
     
     return(output)
   })
@@ -55,38 +56,24 @@ shinyServer(function(input, output) {
     output <- plotData()
     dims <- dims()
     
-    output <- do.call('rbind',lapply(split(1:nrow(output),output[,dims]),
-      FUN=function(j) {
-      if(length(j) > 0) {
-        i <- as.matrix(output[j,c('initial_speed','plate_x','plate_z','break_x','break_z')])
-        return(data.frame(
-          output[min(j),unique(dims)],
-          percent=paste0(round(100*(nrow(i)/sum(output[,dims[1]]==unique(output[j,dims[1]]))),1),'%\n',round(mean(i[,'initial_speed'],na.rm=T),1),'+/-',round(sd(i[,'initial_speed'],na.rm=T),1),'mph'),
-          q10_plate_x=quantile(i[,'plate_x'],0.1),
-          q25_plate_x=quantile(i[,'plate_x'],0.25),
-          q50_plate_x=quantile(i[,'plate_x'],0.5),
-          q75_plate_x=quantile(i[,'plate_x'],0.75),
-          q90_plate_x=quantile(i[,'plate_x'],0.9),
-          q10_plate_z=quantile(i[,'plate_z'],0.1),
-          q25_plate_z=quantile(i[,'plate_z'],0.25),
-          q50_plate_z=quantile(i[,'plate_z'],0.5),
-          q75_plate_z=quantile(i[,'plate_z'],0.75),
-          q90_plate_z=quantile(i[,'plate_z'],0.9),
-          q10_break_x=quantile(i[,'break_x'],0.1),
-          q25_break_x=quantile(i[,'break_x'],0.25),
-          q50_break_x=quantile(i[,'break_x'],0.5),
-          q75_break_x=quantile(i[,'break_x'],0.75),
-          q90_break_x=quantile(i[,'break_x'],0.9),
-          q10_break_z=quantile(i[,'break_z'],0.1),
-          q25_break_z=quantile(i[,'break_z'],0.25),
-          q50_break_z=quantile(i[,'break_z'],0.5),
-          q75_break_z=quantile(i[,'break_z'],0.75),
-          q90_break_z=quantile(i[,'break_z'],0.9)
-        ))
-      }
-    }))
+    combos <- unique(output[,dims])
+    textbox <- vector(length=nrow(combos),mode='character')
+    measures <- matrix(NA,nrow=nrow(combos),ncol=20)
+    quantiles <- c(0.1,0.25,0.5,0.75,0.9)
+    metrics <- c('plate_x','plate_z','break_x','break_z')
+    measure_data <- output[,c('initial_speed',metrics)]
+    colnames(measures) <- paste0(paste0('q',100*quantiles),'_',rep(metrics,each=length(quantiles)))
     
-    return(output)
+    for(i in 1:nrow(combos)) {
+      include <- rep(TRUE,nrow(output))
+      for(j in 1:length(dims)) include <- include & output[,dims[j]]==combos[i,dims[j]]
+      
+      curr_data <- measure_data[include,]
+      textbox[i] <- paste0(round(100*(nrow(curr_data)/sum(output[,dims[1]]==unique(output[include,dims[1]]))),1),'%\n',round(mean(curr_data[,'initial_speed'],na.rm=T),1),'+/-',round(sd(curr_data[,'initial_speed'],na.rm=T),1),'mph')
+      measures[i,] <- sapply(metrics,FUN=function(x) return(quantile(curr_data[,x],quantiles,na.rm=T)))
+    }
+    
+    return(data.frame(combos,percent=textbox,measures))
   })
   
   output$Location <- renderPlot({

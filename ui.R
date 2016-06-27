@@ -1,7 +1,7 @@
 shinyUI(
   fluidPage(
     sidebarPanel(
-      dateRangeInput('date_range','',start=min(dataset$Date),end=max(dataset$Date)),
+      # dateRangeInput('date_range','',start=min(dataset$Date),end=max(dataset$Date)),
       checkboxInput('by_pitch_type',label='By Pitch Type?', value=T),
       checkboxInput('by_inning',label='By Inning?', value=F),
       checkboxInput('by_side',label='By Batter Side?', value=F),
@@ -11,11 +11,13 @@ shinyUI(
                   selected=NA,
                   multiple=TRUE
       ),
+      checkboxInput('exclude_pitch',label='Exclude?',value=F),
       selectInput('event_type',label='Outcome',
                   choices=event_types,
                   selected=NA,
                   multiple=TRUE
       ),
+      checkboxInput('exclude_event',label='Exclude?',value=F),
       sliderInput('inning',label='Inning',min=1,max=max(dataset$inning),value=c(1,max(dataset$inning)),step=1),
       sliderInput('pitch_number',label='Pitch Number',min=1,max=max(dataset$pitch_number),value=c(1,max(dataset$pitch_number)),step=1),
       numericInput('balls',label='Count (Balls, Strikes, Outs): ',value=NA),
